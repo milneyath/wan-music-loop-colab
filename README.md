@@ -1,6 +1,6 @@
 # wan-music-loop-colab
 
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/YOUR_GITHUB_USERNAME/wan-music-loop-colab/blob/main/notebooks/wan_loop.ipynb)
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/milneyath/wan-music-loop-colab/blob/main/notebooks/wan_loop.ipynb)
 
 Generate short, **seamlessly looping music visuals** from a single still image
 using [**Wan2.2**](https://huggingface.co/Wan-AI) via 🤗 **Diffusers**, all in
@@ -19,9 +19,9 @@ a seamless **ping-pong loop** and exports a single run-through. Loop that clip
 under your track later in a video editor rather than exporting a giant file
 here.
 
-> ⚠️ **Replace `YOUR_GITHUB_USERNAME`** in the badge URL (and in `.env`) with
-> your actual GitHub username *after* you create the GitHub repo — otherwise the
-> Colab button won't resolve to your notebook.
+> This repo is configured for the GitHub user **`milneyath`**. If you fork it
+> under a different account, update the username in the badge URL above and in
+> your `.env` so the Colab button resolves to your copy.
 
 ---
 
@@ -37,7 +37,7 @@ VS Code, and generate the `.ipynb` only when you want to run it in Colab.
 ## Local setup
 
 ```bash
-git clone git@github.com:YOUR_GITHUB_USERNAME/wan-music-loop-colab.git
+git clone git@github.com:milneyath/wan-music-loop-colab.git
 cd wan-music-loop-colab
 
 # (optional) create a virtual environment
@@ -126,10 +126,11 @@ python scripts/open_colab_url.py
 ### Colab URL template
 
 ```
-https://colab.research.google.com/github/YOUR_GITHUB_USERNAME/wan-music-loop-colab/blob/main/notebooks/wan_loop.ipynb
+https://colab.research.google.com/github/milneyath/wan-music-loop-colab/blob/main/notebooks/wan_loop.ipynb
 ```
 
-Replace `YOUR_GITHUB_USERNAME` with your GitHub username.
+Replace `milneyath` with your GitHub username if you forked under a different
+account.
 
 ---
 
