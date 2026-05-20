@@ -25,7 +25,7 @@
 # 2. Generate gentle ambient motion with `Wan-AI/Wan2.2-TI2V-5B-Diffusers`.
 # 3. Export the base clip.
 # 4. Build a ping-pong (forward + reverse) loop so it repeats seamlessly.
-# 5. Repeat the loop to a short target length (~30s, no audio).
+#    Export one run-through — loop it under your track later in an editor.
 #
 # > Run on a **GPU** runtime: *Runtime → Change runtime type → GPU*.
 
@@ -85,7 +85,6 @@ NUM_INFERENCE_STEPS = 20  # more steps = slower, potentially cleaner
 GUIDANCE_SCALE = 5.0      # prompt adherence
 SEED = 42                 # change for a different result
 MAX_LONG_SIDE = 832       # cap the longest image dimension (VRAM/quality)
-LOOP_SECONDS = 30         # length of the final repeated loop (keeps files small)
 
 # %% [markdown]
 # ## E. Upload an image
@@ -208,37 +207,17 @@ export_to_video(loop_frames, pingpong_path, fps=FPS)
 print("Wrote:", pingpong_path, "frames:", len(loop_frames))
 
 # %% [markdown]
-# ## K. Repeat the loop to the target length (no audio)
+# ## K. Download the results
 #
-# Repeat the ping-pong loop until it reaches roughly `LOOP_SECONDS` (default
-# 30s). A short loop keeps the file small — repeat it further in your editor
-# under the music if you need a full track.
-
-# %%
-target_frames = int(LOOP_SECONDS * FPS)
-loop_len = len(loop_frames)
-repeats = max(1, -(-target_frames // loop_len))  # ceil division
-
-repeated_frames = (loop_frames * repeats)[:target_frames]
-
-repeated_path = "outputs/wan_loop_30s_no_audio.mp4"
-export_to_video(repeated_frames, repeated_path, fps=FPS)
-print(
-    "Wrote:", repeated_path,
-    "frames:", len(repeated_frames),
-    f"(~{len(repeated_frames) / FPS:.0f}s)",
-)
-
-# %% [markdown]
-# ## L. Download the results
+# This exports a single run-through: the base clip and the seamless ping-pong
+# loop (one pass). Loop the ping-pong file as many times as you like later in
+# your video editor under the music.
 
 # %%
 if IN_COLAB:
     files.download(base_path)
     files.download(pingpong_path)
-    files.download(repeated_path)
 else:
     print("Not in Colab — files are in the outputs/ directory:")
     print(" ", base_path)
     print(" ", pingpong_path)
-    print(" ", repeated_path)
