@@ -187,8 +187,14 @@ def generate_frames(pipe, image, cfg: Config, device: str):
 
 # --- Looping & export ------------------------------------------------------
 def make_pingpong(frames):
-    """Forward + reverse (without duplicating the endpoints) = seamless loop."""
-    return frames + frames[-2:0:-1]
+    """Forward + reverse (without duplicating the endpoints) = seamless loop.
+
+    `frames` may be a list or a numpy array (depending on the diffusers
+    version). Coerce to a list of per-frame items first so the `+` is list
+    concatenation, not numpy elementwise addition.
+    """
+    forward = list(frames)
+    return forward + forward[-2:0:-1]
 
 
 def export_clip(frames, path, fps):
