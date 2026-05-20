@@ -1,5 +1,5 @@
 jupytext
-diffusers
+diffusers>=0.35
 transformers
 accelerate
 sentencepiece

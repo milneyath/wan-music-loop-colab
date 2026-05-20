@@ -15,27 +15,31 @@
 # %% [markdown]
 # # Wan2.2 Music Loop Generator
 #
-# Turns a **single still image** into a short Wan2.2 image-to-video clip, then
-# builds a seamless **ping-pong loop** — a hypnotic background visual for a
-# music track. Loop the result under your song later in a video editor.
+# Turns a **single still image** into a short image-to-video clip, then builds
+# a seamless **ping-pong loop** — a hypnotic background visual for a music
+# track. Loop the result under your song later in a video editor.
 #
 # **All the real code lives in [`src/wan_loop.py`](https://github.com/milneyath/wan-music-loop-colab/blob/main/src/wan_loop.py)** in the repo; this notebook just
 # clones it, installs deps, and runs it.
 #
 # **How to use:**
-# 1. *Runtime → Change runtime type → **GPU***.
-# 2. Edit the **Parameters** cell below.
-# 3. *Runtime → **Run all***. Upload an image when prompted; the clips download
-#    automatically when done.
+# 1. *Runtime → Change runtime type → **GPU*** (A100 recommended for `wan`).
+# 2. Edit the **Parameters** cell.
+# 3. *Runtime → **Run all***. If Colab shows a **RESTART** button after Setup,
+#    click it, then run the **Run** cell. Upload an image when prompted; the
+#    clips download automatically when done.
 
 # %% [markdown]
-# ## 1. Parameters — edit these
+# ## A. Parameters — edit these
 
 # %%
 # Repo to clone (change if you forked it under a different account).
 REPO_URL = "https://github.com/milneyath/wan-music-loop-colab.git"
 
-MODEL_ID = "Wan-AI/Wan2.2-TI2V-5B-Diffusers"
+# Backend: "wan" (Wan2.2 TI2V-5B, best quality, needs an A100) or
+# "ltx" (Lightricks LTX-Video, lighter, fits a free T4).
+BACKEND = "wan"
+MODEL_ID = None  # None -> the backend's default model
 
 PROMPT = """A dreamy looping music visual based on the input image. Keep the exact subject, composition, colors, and background consistent. Add only gentle ambient motion: soft drifting particles, subtle light shimmer, very slow atmospheric movement, slight breathing motion in the scene. Camera locked. No zoom, no pan, no rotation. Smooth, cinematic, stable, hypnotic."""
 
@@ -49,11 +53,12 @@ SEED = 42                 # change for a different result
 MAX_LONG_SIDE = 832       # cap the longest image side (lower this if you OOM)
 
 # %% [markdown]
-# ## 2. Clone, install, and run
+# ## B. Setup — clone the repo and install dependencies
 #
-# This single cell clones the repo, installs dependencies (Diffusers from git
-# `main`, which is required for this model's image-to-video support), uploads
-# your image, generates the clips, and downloads them.
+# This clones/updates the repo and installs a **stable** Diffusers release.
+# It deliberately does **not** upgrade or import torch, so it can't crash the
+# kernel. **If Colab shows a RESTART button when this finishes, click it, then
+# run the next cell.**
 
 # %%
 import os
@@ -68,31 +73,29 @@ else:
     subprocess.run(["git", "-C", REPO_DIR, "pull", "--ff-only"], check=True)
 
 # --- Install dependencies --------------------------------------------------
+# Stable diffusers (>=0.35 supports Wan2.2). No `-U` on torch/numpy/
+# transformers and NO torch import here — that combination is what kills the
+# Colab kernel ("Runtime disconnected").
 subprocess.run(
-    [sys.executable, "-m", "pip", "install", "-q", "-U",
-     "git+https://github.com/huggingface/diffusers",
-     "transformers", "accelerate", "sentencepiece", "safetensors", "ftfy",
-     "imageio", "imageio-ffmpeg", "pillow", "moviepy"],
+    [sys.executable, "-m", "pip", "install", "-q",
+     "diffusers>=0.35", "ftfy", "imageio-ffmpeg", "moviepy"],
     check=True,
 )
 
-# --- Import the engine -----------------------------------------------------
+print("Setup done. If Colab shows a RESTART button, click it, then run the next cell.")
+
+# %% [markdown]
+# ## C. Run — upload an image and generate the loop
+
+# %%
+import os
+import sys
+
 sys.path.insert(0, os.path.join(os.path.abspath(REPO_DIR), "src"))
 import wan_loop  # noqa: E402
 
-import torch  # noqa: E402
-print("CUDA available:", torch.cuda.is_available())
-if not torch.cuda.is_available():
-    print("WARNING: no GPU. Set Runtime -> Change runtime type -> GPU.")
-
-# --- Upload an image (first file is used) ----------------------------------
-from google.colab import files  # noqa: E402
-uploaded = files.upload()
-image_path = next(iter(uploaded))
-print("Using:", image_path)
-
-# --- Build config from the Parameters cell ---------------------------------
 cfg = wan_loop.Config(
+    backend=BACKEND,
     model_id=MODEL_ID,
     prompt=PROMPT,
     negative_prompt=NEGATIVE_PROMPT,
@@ -103,8 +106,4 @@ cfg = wan_loop.Config(
     seed=SEED,
     max_long_side=MAX_LONG_SIDE,
 )
-
-# --- Generate and download -------------------------------------------------
-paths = wan_loop.run(image_path, cfg)
-files.download(paths["base"])
-files.download(paths["pingpong"])
+wan_loop.colab_run(cfg)

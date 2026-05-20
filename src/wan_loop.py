@@ -33,11 +33,23 @@ DEFAULT_NEGATIVE_PROMPT = (
 )
 
 
+# --- Backend registry ------------------------------------------------------
+# Each backend maps to (pipeline class name, default model id). Both pipelines
+# accept `image` + `prompt`, so the rest of the engine stays backend-agnostic.
+# Class names are resolved lazily inside load_pipeline so this module imports
+# without diffusers/torch present.
+BACKENDS = {
+    "wan": ("WanImageToVideoPipeline", "Wan-AI/Wan2.2-TI2V-5B-Diffusers"),
+    "ltx": ("LTXImageToVideoPipeline", "Lightricks/LTX-Video"),
+}
+
+
 @dataclass
 class Config:
     """All the knobs the notebook exposes."""
 
-    model_id: str = "Wan-AI/Wan2.2-TI2V-5B-Diffusers"
+    backend: str = "wan"           # "wan" (default, A100) or "ltx" (lighter)
+    model_id: str | None = None    # None -> backend default from BACKENDS
     prompt: str = DEFAULT_PROMPT
     negative_prompt: str = DEFAULT_NEGATIVE_PROMPT
     num_frames: int = 121          # clip length in frames
@@ -75,33 +87,71 @@ def load_image(path, max_long_side=832):
 
 
 # --- Model -----------------------------------------------------------------
+def resolve_backend(cfg: Config):
+    """Return (pipeline_class_name, model_id) for the configured backend."""
+    if cfg.backend not in BACKENDS:
+        raise ValueError(
+            f"Unknown backend {cfg.backend!r}; choose from {list(BACKENDS)}"
+        )
+    cls_name, default_model = BACKENDS[cfg.backend]
+    return cls_name, (cfg.model_id or default_model)
+
+
+# A100-class cards have ~40GB; anything at/above this gets the fast no-offload
+# path. Below it (e.g. a free T4 with 16GB) we fall back to CPU offload.
+HIGH_VRAM_BYTES = 30 * 1024**3
+
+
 def load_pipeline(cfg: Config, device: str | None = None):
-    """Load the Wan2.2 TI2V-5B image-to-video pipeline.
+    """Load the configured image-to-video pipeline, VRAM-aware.
 
-    Uses `WanImageToVideoPipeline` (NOT `WanPipeline`, which is text-to-video
-    only and rejects `image`). The VAE is loaded in float32 for stability per
-    the model card; the transformer runs in bfloat16. On limited Colab VRAM,
-    model CPU offload is preferred over a full move to GPU.
+    Backend is selected via `cfg.backend` (see BACKENDS):
+      - "wan" -> WanImageToVideoPipeline (Wan2.2 TI2V-5B). NOT `WanPipeline`,
+        which is text-to-video only and rejects `image`.
+      - "ltx" -> LTXImageToVideoPipeline (lighter, fits a free T4).
 
-    Requires Diffusers from git main (image-to-video for this model landed
-    after the last stable release).
+    On a high-VRAM GPU (A100, >= ~30GB) the pipeline is moved fully to CUDA for
+    speed. On a smaller GPU we use `enable_model_cpu_offload()` plus VAE
+    slicing. VAE *tiling* is deliberately NOT enabled — it is broken for Wan2.2
+    in diffusers (huggingface/diffusers#12529).
     """
-    from diffusers import AutoencoderKLWan, WanImageToVideoPipeline
+    import diffusers
+
+    cls_name, model_id = resolve_backend(cfg)
+    PipelineClass = getattr(diffusers, cls_name)
 
     device = device or ("cuda" if torch.cuda.is_available() else "cpu")
     dtype = torch.bfloat16 if device == "cuda" else torch.float32
 
-    vae = AutoencoderKLWan.from_pretrained(
-        cfg.model_id, subfolder="vae", torch_dtype=torch.float32
-    )
-    pipe = WanImageToVideoPipeline.from_pretrained(
-        cfg.model_id, vae=vae, torch_dtype=dtype
+    # Wan2.2 wants its VAE in float32 for stability (per the model card).
+    if cfg.backend == "wan":
+        vae = diffusers.AutoencoderKLWan.from_pretrained(
+            model_id, subfolder="vae", torch_dtype=torch.float32
+        )
+        pipe = PipelineClass.from_pretrained(model_id, vae=vae, torch_dtype=dtype)
+    else:
+        pipe = PipelineClass.from_pretrained(model_id, torch_dtype=dtype)
+
+    total_vram = (
+        torch.cuda.get_device_properties(0).total_memory
+        if device == "cuda"
+        else 0
     )
 
-    try:
+    if device == "cuda" and total_vram >= HIGH_VRAM_BYTES:
+        print(f"High-VRAM GPU ({total_vram / 1024**3:.0f}GB): full move to CUDA.")
+        pipe = pipe.to("cuda")
+    elif device == "cuda":
+        print(
+            f"Limited-VRAM GPU ({total_vram / 1024**3:.0f}GB): CPU offload + "
+            "VAE slicing."
+        )
         pipe.enable_model_cpu_offload()
-    except Exception as e:  # noqa: BLE001 - offload is best-effort
-        print("CPU offload unavailable, moving fully to device:", e)
+        try:
+            pipe.vae.enable_slicing()
+        except Exception as e:  # noqa: BLE001 - slicing is best-effort
+            print("VAE slicing unavailable:", e)
+    else:
         pipe = pipe.to(device)
 
     return pipe, device
@@ -178,6 +228,39 @@ def run(image_path, cfg: Config | None = None):
     print("Wrote:", base)
     print("Wrote:", pingpong, "(frames:", len(loop_frames), ")")
     return {"base": base, "pingpong": pingpong}
+
+
+# --- Colab entry point -----------------------------------------------------
+def colab_run(cfg: Config | None = None):
+    """Colab front door: detect GPU, upload an image, run, download outputs.
+
+    All `google.colab` imports live inside this function so the module stays
+    importable locally and in plain Jupyter. Call this from the notebook's
+    Run cell after building a Config.
+    """
+    cfg = cfg or Config()
+
+    print("CUDA available:", torch.cuda.is_available())
+    if torch.cuda.is_available():
+        props = torch.cuda.get_device_properties(0)
+        print(f"GPU: {props.name} ({props.total_memory / 1024**3:.0f}GB)")
+    else:
+        print("WARNING: no GPU. Set Runtime -> Change runtime type -> GPU.")
+
+    _, model_id = resolve_backend(cfg)
+    print(f"Backend: {cfg.backend}  Model: {model_id}")
+
+    from google.colab import files
+
+    print("Upload a still image (the first file is used):")
+    uploaded = files.upload()
+    image_path = next(iter(uploaded))
+    print("Using:", image_path)
+
+    paths = run(image_path, cfg)
+    files.download(paths["base"])
+    files.download(paths["pingpong"])
+    return paths
 
 
 if __name__ == "__main__":

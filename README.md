@@ -73,18 +73,20 @@ The notebook is deliberately **thin** — it sets parameters and then clones,
 installs, and runs. All real logic lives in an importable module:
 
 - **`src/wan_loop.py`** — the engine: `Config` plus `load_pipeline`,
-  `generate_frames`, `make_pingpong`, `export_clip`, and a top-level `run()`.
-  Plain Python, no Colab dependencies, so you can test it locally:
+  `generate_frames`, `make_pingpong`, `export_clip`, a top-level `run()`, and a
+  `colab_run()` entry point (the only place `google.colab` is imported). Plain
+  Python with no Colab dependency at import time, so you can test it locally:
   `python src/wan_loop.py path/to/image.jpg`.
 - **`notebooks/launcher.py`** — the Jupytext *percent* source for the notebook.
-  Two cells: **Parameters** (what you tweak day to day) and **Clone, install,
-  and run** (one cell that does everything in Colab).
+  **Three thin cells**: **A. Parameters** (what you tweak day to day),
+  **B. Setup** (clone + install — no torch import), and **C. Run** (~5 lines:
+  import the engine and call `wan_loop.colab_run(cfg)`).
 - **`notebooks/wan_loop.ipynb`** — generated from `launcher.py`. Don't
   hand-edit it.
 
-In Colab the run cell does `git clone` / `git pull`, so to pick up engine
-changes you just **re-run the cell** (it pulls the latest `main`) — no notebook
-re-sync needed for logic edits.
+The Setup cell does `git clone` / `git pull`, so to pick up engine changes you
+just **re-run** it (it pulls the latest `main`) — no notebook re-sync needed for
+logic edits.
 
 ---
 
@@ -148,15 +150,32 @@ account.
 ## In Colab
 
 1. Set the runtime to **GPU**: *Runtime → Change runtime type → GPU*.
-2. Edit the **Parameters** cell (prompt, frames, resolution, …).
-3. *Runtime → Run all.* The run cell clones the repo, installs deps, and
-   prompts you to upload a still image.
-4. It generates the base clip and a seamless ping-pong loop (one run-through),
-   then downloads them.
+2. Edit the **A. Parameters** cell (backend, prompt, frames, resolution, …).
+3. *Runtime → Run all.* **B. Setup** clones the repo and installs a stable
+   Diffusers. **If Colab shows a RESTART button when Setup finishes, click it,
+   then run the cells again** — this is normal after a dependency install.
+4. **C. Run** imports the engine, prompts you to upload a still image, then
+   generates the base clip and a seamless ping-pong loop and downloads them.
 
-> **VRAM note:** the larger **Wan2.2 I2V A14B** models can need very high VRAM
-> and generally won't fit on a free Colab GPU. This notebook defaults to
-> **`Wan-AI/Wan2.2-TI2V-5B-Diffusers`**, the practical Colab starting point.
+> **Why the restart-and-rerun?** "Runtime disconnected" used to happen because
+> the old single cell upgraded torch/transformers and then imported torch in
+> the same session, segfaulting the kernel. Setup now installs a stable
+> Diffusers without `-U` and **never imports torch**, so the import only happens
+> in the Run cell (a clean session) and the kernel survives.
+
+### Backend & GPU guidance
+
+The `BACKEND` parameter switches the model:
+
+- **`"wan"`** (default) → `Wan-AI/Wan2.2-TI2V-5B-Diffusers`. Best quality;
+  needs an **A100** (Colab Pro). Peak VRAM ~26GB during VAE decode, so it's
+  moved fully to CUDA for speed. The larger **Wan2.2 I2V A14B** models won't
+  fit on Colab.
+- **`"ltx"`** → `Lightricks/LTX-Video`. Lighter; fits a **free T4**. On a
+  smaller GPU the engine auto-switches to CPU offload + VAE slicing.
+>
+> VAE *tiling* is deliberately left off for Wan2.2 — it's broken in diffusers
+> ([#12529](https://github.com/huggingface/diffusers/issues/12529)).
 
 ---
 
