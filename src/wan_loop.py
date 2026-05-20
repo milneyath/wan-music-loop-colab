@@ -37,7 +37,7 @@
 # > The stable PyPI build raises `unexpected keyword argument 'image'`.
 
 # %%
-# !pip -q install -U git+https://github.com/huggingface/diffusers transformers accelerate sentencepiece safetensors imageio imageio-ffmpeg pillow moviepy
+# !pip -q install -U git+https://github.com/huggingface/diffusers transformers accelerate sentencepiece safetensors ftfy imageio imageio-ffmpeg pillow moviepy
 
 # %% [markdown]
 # ## B. GPU check
