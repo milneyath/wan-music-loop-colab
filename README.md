@@ -15,8 +15,9 @@ The workflow:
 4. Open it in **Google Colab** with one click via the badge above.
 
 In Colab the notebook generates a short Wan2.2 image-to-video clip, then builds
-a **ping-pong loop** (and optionally repeats it to ~3 minutes) for use as a
-YouTube music background.
+a **ping-pong loop** (and repeats it to a short target length, ~30s) for use as
+a YouTube music background. Keep the loop short — repeat it further in your
+editor under the track rather than exporting a giant file here.
 
 > ⚠️ **Replace `YOUR_GITHUB_USERNAME`** in the badge URL (and in `.env`) with
 > your actual GitHub username *after* you create the GitHub repo — otherwise the
@@ -137,8 +138,8 @@ Replace `YOUR_GITHUB_USERNAME` with your GitHub username.
 1. Set the runtime to **GPU**: *Runtime → Change runtime type → GPU*.
 2. Run the cells top to bottom.
 3. Upload a still image when prompted.
-4. The notebook generates the base clip, a ping-pong loop, and an optional
-   ~3-minute repeated loop, then downloads them.
+4. The notebook generates the base clip, a ping-pong loop, and a ~30s repeated
+   loop, then downloads them.
 
 > **VRAM note:** the larger **Wan2.2 I2V A14B** models can need very high VRAM
 > and generally won't fit on a free Colab GPU. This notebook defaults to
