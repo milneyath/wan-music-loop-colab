@@ -101,6 +101,22 @@ def resolve_backend(cfg: Config):
 # path. Below it (e.g. a free T4 with 16GB) we fall back to CPU offload.
 HIGH_VRAM_BYTES = 30 * 1024**3
 
+# A loaded pipeline is cached here keyed by (cls_name, model_id) so re-running
+# the Run cell in the same Colab session reuses the resident model instead of
+# loading a *second* copy onto the GPU. The latter OOMs on a 40GB A100 because
+# IPython keeps the previous run's pipeline alive via its stored traceback.
+_PIPELINE_CACHE: dict = {}
+
+
+def free_pipelines():
+    """Drop any cached pipeline and reclaim its GPU memory."""
+    import gc
+
+    _PIPELINE_CACHE.clear()
+    gc.collect()
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+
 
 def load_pipeline(cfg: Config, device: str | None = None):
     """Load the configured image-to-video pipeline, VRAM-aware.
@@ -114,10 +130,24 @@ def load_pipeline(cfg: Config, device: str | None = None):
     speed. On a smaller GPU we use `enable_model_cpu_offload()` plus VAE
     slicing. VAE *tiling* is deliberately NOT enabled — it is broken for Wan2.2
     in diffusers (huggingface/diffusers#12529).
+
+    The result is cached so a second call in the same session (e.g. re-running
+    the Run cell) reuses the resident model rather than loading another copy.
     """
     import diffusers
 
     cls_name, model_id = resolve_backend(cfg)
+    key = (cls_name, model_id)
+
+    cached = _PIPELINE_CACHE.get(key)
+    if cached is not None:
+        print("Reusing already-loaded pipeline (cached this session).")
+        return cached
+
+    # A different model was requested, or a prior run left one resident — free
+    # it before loading so we don't stack two pipelines on the GPU.
+    free_pipelines()
+
     PipelineClass = getattr(diffusers, cls_name)
 
     device = device or ("cuda" if torch.cuda.is_available() else "cpu")
@@ -154,6 +184,7 @@ def load_pipeline(cfg: Config, device: str | None = None):
     else:
         pipe = pipe.to(device)
 
+    _PIPELINE_CACHE[key] = (pipe, device)
     return pipe, device
 
 
