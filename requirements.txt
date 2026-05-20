@@ -1,0 +1,10 @@
+jupytext
+diffusers
+transformers
+accelerate
+sentencepiece
+safetensors
+imageio
+imageio-ffmpeg
+pillow
+moviepy

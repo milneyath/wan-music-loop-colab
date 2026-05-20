@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+
+# Notebooks
+.ipynb_checkpoints/
+
+# Environments
+.env
+.venv/
+venv/
+
+# macOS
+.DS_Store
+
+# Outputs / generated media
+outputs/
+*.mp4
+*.mov
+*.avi
+*.mkv
+
+# Model weights
+models/
+*.safetensors
+*.ckpt
+*.pt
+*.pth
