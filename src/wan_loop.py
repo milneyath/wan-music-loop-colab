@@ -31,9 +31,13 @@
 
 # %% [markdown]
 # ## A. Install dependencies
+#
+# > **Important:** Wan2.2 TI2V-5B **image-to-video** support landed after the
+# > last stable Diffusers release, so we install Diffusers from **git `main`**.
+# > The stable PyPI build raises `unexpected keyword argument 'image'`.
 
 # %%
-# !pip -q install -U diffusers transformers accelerate sentencepiece safetensors imageio imageio-ffmpeg pillow moviepy
+# !pip -q install -U git+https://github.com/huggingface/diffusers transformers accelerate sentencepiece safetensors imageio imageio-ffmpeg pillow moviepy
 
 # %% [markdown]
 # ## B. GPU check
@@ -52,7 +56,7 @@ import os
 
 import torch
 from PIL import Image
-from diffusers import DiffusionPipeline
+from diffusers import WanPipeline, AutoencoderKLWan
 from diffusers.utils import export_to_video
 
 # google.colab is only available inside Colab; guard so the file still imports
@@ -136,7 +140,10 @@ print(f"Generation size: {width} x {height}")
 # %% [markdown]
 # ## G. Load the model
 #
-# We load in **bfloat16** and move to CUDA when available.
+# Wan2.2 TI2V-5B is a **unified** model: the same `WanPipeline` does both
+# text-to-video and image-to-video — passing an `image` to the call switches it
+# into I2V mode. The VAE is loaded separately in **float32** for stability
+# (per the model card), while the transformer runs in **bfloat16**.
 #
 # > **VRAM warning:** the larger **Wan2.2 I2V A14B** models can require very
 # > high VRAM and generally won't fit on a free Colab GPU. The
@@ -146,14 +153,17 @@ print(f"Generation size: {width} x {height}")
 device = "cuda" if torch.cuda.is_available() else "cpu"
 dtype = torch.bfloat16 if device == "cuda" else torch.float32
 
-pipe = DiffusionPipeline.from_pretrained(MODEL_ID, torch_dtype=dtype)
-pipe = pipe.to(device)
+# VAE in float32, transformer/pipeline in bfloat16.
+vae = AutoencoderKLWan.from_pretrained(MODEL_ID, subfolder="vae", torch_dtype=torch.float32)
+pipe = WanPipeline.from_pretrained(MODEL_ID, vae=vae, torch_dtype=dtype)
 
-# Offloading helps fit larger models on limited VRAM. Safe to ignore failures.
+# On limited Colab VRAM, model CPU offload is safer than a full move to GPU.
+# (Don't also call .to("cuda") when offload is active — pick one.)
 try:
     pipe.enable_model_cpu_offload()
 except Exception as e:
-    print("CPU offload not enabled:", e)
+    print("CPU offload unavailable, moving fully to device:", e)
+    pipe = pipe.to(device)
 
 generator = torch.Generator(device=device).manual_seed(SEED)
 
