@@ -14,7 +14,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 cd "${REPO_ROOT}"
 
-SRC="src/wan_loop.py"
+SRC="notebooks/launcher.py"
 OUT="notebooks/wan_loop.ipynb"
 
 # --- Ensure jupytext is available -----------------------------------------
@@ -37,7 +37,8 @@ echo "Done."
 if [[ "${1:-}" == "--push" ]]; then
   COMMIT_MSG="${2:-update notebook}"
 
-  git add "${SRC}" "${OUT}"
+  # Stage the launcher source, the generated notebook, and the engine module.
+  git add "${SRC}" "${OUT}" src/wan_loop.py
 
   # Don't fail when there's nothing staged to commit.
   if git diff --cached --quiet; then

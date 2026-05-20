@@ -67,13 +67,24 @@ pip install jupytext
 
 ---
 
-## Editing in Cursor / VS Code
+## How the code is organised
 
-Open the repo and edit **`src/wan_loop.py`**. It is a Jupytext *percent*
-notebook — cells are delimited by `# %%` (code) and `# %% [markdown]`
-(markdown). Edit it like any Python file; no notebook UI required.
+The notebook is deliberately **thin** — it sets parameters and then clones,
+installs, and runs. All real logic lives in an importable module:
 
-Do **not** hand-edit `notebooks/wan_loop.ipynb` — it is generated.
+- **`src/wan_loop.py`** — the engine: `Config` plus `load_pipeline`,
+  `generate_frames`, `make_pingpong`, `export_clip`, and a top-level `run()`.
+  Plain Python, no Colab dependencies, so you can test it locally:
+  `python src/wan_loop.py path/to/image.jpg`.
+- **`notebooks/launcher.py`** — the Jupytext *percent* source for the notebook.
+  Two cells: **Parameters** (what you tweak day to day) and **Clone, install,
+  and run** (one cell that does everything in Colab).
+- **`notebooks/wan_loop.ipynb`** — generated from `launcher.py`. Don't
+  hand-edit it.
+
+In Colab the run cell does `git clone` / `git pull`, so to pick up engine
+changes you just **re-run the cell** (it pulls the latest `main`) — no notebook
+re-sync needed for logic edits.
 
 ---
 
@@ -90,7 +101,7 @@ bash scripts/sync_notebook.sh
 This runs:
 
 ```bash
-jupytext --to ipynb src/wan_loop.py --output notebooks/wan_loop.ipynb
+jupytext --to ipynb notebooks/launcher.py --output notebooks/wan_loop.ipynb
 ```
 
 ---
@@ -137,10 +148,11 @@ account.
 ## In Colab
 
 1. Set the runtime to **GPU**: *Runtime → Change runtime type → GPU*.
-2. Run the cells top to bottom.
-3. Upload a still image when prompted.
-4. The notebook generates the base clip and a seamless ping-pong loop (one
-   run-through), then downloads them.
+2. Edit the **Parameters** cell (prompt, frames, resolution, …).
+3. *Runtime → Run all.* The run cell clones the repo, installs deps, and
+   prompts you to upload a still image.
+4. It generates the base clip and a seamless ping-pong loop (one run-through),
+   then downloads them.
 
 > **VRAM note:** the larger **Wan2.2 I2V A14B** models can need very high VRAM
 > and generally won't fit on a free Colab GPU. This notebook defaults to
@@ -158,11 +170,12 @@ wan-music-loop-colab/
   .env.example
   Makefile
   scripts/
-    sync_notebook.sh      # src/*.py -> notebooks/*.ipynb (+ optional push)
+    sync_notebook.sh       # launcher.py -> wan_loop.ipynb (+ optional push)
     open_colab_url.py      # prints the Colab URL from env vars
   src/
-    wan_loop.py            # EDIT THIS — Jupytext percent notebook
+    wan_loop.py            # ENGINE — importable functions + Config (edit logic here)
   notebooks/
+    launcher.py            # Jupytext source for the thin notebook (edit params here)
     wan_loop.ipynb         # GENERATED — opened in Colab
 ```
 

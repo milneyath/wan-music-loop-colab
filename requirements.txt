@@ -4,6 +4,7 @@ transformers
 accelerate
 sentencepiece
 safetensors
+ftfy
 imageio
 imageio-ffmpeg
 pillow
