@@ -56,7 +56,7 @@ import os
 
 import torch
 from PIL import Image
-from diffusers import WanPipeline, AutoencoderKLWan
+from diffusers import WanImageToVideoPipeline, AutoencoderKLWan
 from diffusers.utils import export_to_video
 
 # google.colab is only available inside Colab; guard so the file still imports
@@ -140,10 +140,10 @@ print(f"Generation size: {width} x {height}")
 # %% [markdown]
 # ## G. Load the model
 #
-# Wan2.2 TI2V-5B is a **unified** model: the same `WanPipeline` does both
-# text-to-video and image-to-video — passing an `image` to the call switches it
-# into I2V mode. The VAE is loaded separately in **float32** for stability
-# (per the model card), while the transformer runs in **bfloat16**.
+# For image-to-video we use **`WanImageToVideoPipeline`** — `WanPipeline` is
+# text-to-video only and does not accept an `image` argument. The VAE is loaded
+# separately in **float32** for stability (per the model card), while the
+# transformer runs in **bfloat16**.
 #
 # > **VRAM warning:** the larger **Wan2.2 I2V A14B** models can require very
 # > high VRAM and generally won't fit on a free Colab GPU. The
@@ -155,7 +155,7 @@ dtype = torch.bfloat16 if device == "cuda" else torch.float32
 
 # VAE in float32, transformer/pipeline in bfloat16.
 vae = AutoencoderKLWan.from_pretrained(MODEL_ID, subfolder="vae", torch_dtype=torch.float32)
-pipe = WanPipeline.from_pretrained(MODEL_ID, vae=vae, torch_dtype=dtype)
+pipe = WanImageToVideoPipeline.from_pretrained(MODEL_ID, vae=vae, torch_dtype=dtype)
 
 # On limited Colab VRAM, model CPU offload is safer than a full move to GPU.
 # (Don't also call .to("cuda") when offload is active — pick one.)
