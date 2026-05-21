@@ -177,10 +177,13 @@ account.
 
 The `BACKEND` parameter switches the model:
 
-- **`"ltx"`** (default) → `Lightricks/LTX-Video`. The robust choice: solid
-  image-to-video on **stable** diffusers, runs comfortably on an A100 and even
-  a free **T4** (the engine auto-switches to CPU offload + VAE slicing on
-  smaller GPUs). This is what the notebook ships with.
+- **`"ltx"`** (default) → `Lightricks/LTX-Video-0.9.7-distilled` via
+  `LTXConditionPipeline`. The variant the authors built for strong
+  image-to-video motion; guidance-distilled, so the engine runs it at
+  `guidance_scale=1.0` with the documented 8 custom timesteps (single-stage, no
+  latent upsampler). Works on **stable** diffusers. The 13B distilled model is
+  large but fits an A100; on smaller GPUs the engine uses CPU offload + VAE
+  slicing.
 - **`"wan"`** → `Wan-AI/Wan2.2-TI2V-5B-Diffusers`. Higher fidelity but fussy:
   its image-to-video path is **only** in diffusers **git main** (stable
   releases decode to washed-out gray), and it wants an A100. To use it, set

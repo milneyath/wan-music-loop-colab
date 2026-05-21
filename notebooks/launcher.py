@@ -47,11 +47,14 @@ PROMPT = """A dreamy, cinematic looping music visual based on the input image. T
 
 NEGATIVE_PROMPT = """static, still, frozen, motionless, no motion, blurry, jittery, distorted, deformed, flickering, glitch, low quality, worst quality, jpeg artifacts, watermark, text, scene change, jump cut"""
 
-NUM_FRAMES = 121          # clip length in frames
+NUM_FRAMES = 121          # clip length in frames (must be 8*N + 1 for LTX)
 FPS = 24                  # playback frame rate
-NUM_INFERENCE_STEPS = 50  # LTX likes ~50; Wan needs >=40
-GUIDANCE_SCALE = 3.0      # prompt adherence (LTX default ~3; Wan uses ~5)
-FLOW_SHIFT = None         # Wan only: UniPC flow shift (None=auto). Ignored by LTX
+# NOTE: the default "ltx" backend is the 0.9.7 *distilled* model — it ignores
+# the three knobs below and uses fixed distilled settings (guidance 1.0 + the
+# documented 8 custom timesteps). They apply only to the "wan" backend.
+NUM_INFERENCE_STEPS = 50  # Wan only
+GUIDANCE_SCALE = 5.0      # Wan only (~5 for Wan)
+FLOW_SHIFT = None         # Wan only: UniPC flow shift (None = auto)
 SEED = 42                 # change for a different result
 MAX_LONG_SIDE = 832       # cap the longest image side (raise toward 1280 for
                           # 720p quality on an A100; lower it if you OOM)

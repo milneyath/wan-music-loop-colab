@@ -43,9 +43,16 @@ DEFAULT_NEGATIVE_PROMPT = (
 # Class names are resolved lazily inside load_pipeline so this module imports
 # without diffusers/torch present.
 BACKENDS = {
+    # LTX-Video 0.9.7 *distilled* via the Condition pipeline — the variant the
+    # authors built for strong image-to-video motion (guidance-distilled: runs
+    # at guidance 1.0 with custom timesteps). This is the default.
+    "ltx": ("LTXConditionPipeline", "Lightricks/LTX-Video-0.9.7-distilled"),
     "wan": ("WanImageToVideoPipeline", "Wan-AI/Wan2.2-TI2V-5B-Diffusers"),
-    "ltx": ("LTXImageToVideoPipeline", "Lightricks/LTX-Video"),
 }
+
+# Distilled 0.9.7 base-pass timesteps (from the LTX-Video docs). 8 steps, no
+# upsampler — single-stage generation, which is enough for motion.
+LTX_DISTILLED_TIMESTEPS = [1000, 993, 987, 981, 975, 909, 725, 0.03]
 
 
 @dataclass
@@ -230,6 +237,36 @@ def configure_scheduler(pipe, cfg: Config, gen_w, gen_h):
         return None
 
 
+def generate_ltx_frames(pipe, image, cfg: Config, generator):
+    """Image-to-video with the LTX 0.9.7 *distilled* Condition pipeline.
+
+    Distilled => guidance_scale=1.0 with the documented custom timesteps; the
+    still is the frame-0 condition and the remaining frames are generated as
+    motion. Single-stage (no latent upsampler); that's enough for movement.
+    """
+    gen_w, gen_h = image.size
+    kwargs = dict(
+        image=image,
+        frame_index=0,
+        prompt=cfg.prompt,
+        negative_prompt=cfg.negative_prompt,
+        width=gen_w,
+        height=gen_h,
+        num_frames=cfg.num_frames,
+        timesteps=LTX_DISTILLED_TIMESTEPS,
+        guidance_scale=1.0,
+        decode_timestep=0.05,
+        decode_noise_scale=0.025,
+        generator=generator,
+    )
+    try:
+        result = pipe(image_cond_noise_scale=0.0, **kwargs)
+    except TypeError as e:  # older diffusers may lack image_cond_noise_scale
+        print("Retrying LTX without image_cond_noise_scale:", e)
+        result = pipe(**kwargs)
+    return result.frames[0]
+
+
 def generate_frames(pipe, image, cfg: Config, device: str):
     """Run the pipeline and return the list of generated frames.
 
@@ -238,6 +275,8 @@ def generate_frames(pipe, image, cfg: Config, device: str):
     """
     generator = torch.Generator(device=device).manual_seed(cfg.seed)
     gen_w, gen_h = image.size
+    if cfg.backend == "ltx":
+        return generate_ltx_frames(pipe, image, cfg, generator)
     shift = configure_scheduler(pipe, cfg, gen_w, gen_h)
     if shift is not None:
         print(f"Scheduler: UniPCMultistepScheduler (flow_shift={shift})")
