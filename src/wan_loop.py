@@ -261,22 +261,34 @@ def generate_frames(pipe, image, cfg: Config, device: str):
 
 
 def describe_frames(frames):
-    """Print min/max/mean/std of the generated frames.
+    """Print value stats AND a motion metric for the generated frames.
 
-    A near-constant array (std ~0, mean ~0.5) means the decode collapsed to
-    flat gray — useful for telling a real result apart from a broken one.
+    - spatial std: contrast *within* frames (flat gray ~ 0).
+    - motion: mean absolute difference between consecutive frames, as a % of
+      the value range. ~0 means the clip is effectively a frozen still; a few
+      % or more means real movement. This is the number that actually tells a
+      still image apart from a moving one.
     """
     import numpy as np
 
     arr = np.asarray(frames, dtype=np.float32)
     flat = arr.reshape(-1)
+    rng = max(flat.max() - flat.min(), 1e-6)
+    diffs = np.abs(np.diff(arr, axis=0))           # consecutive-frame deltas
+    motion_pct = 100.0 * diffs.mean() / rng
+    end_to_end = 100.0 * np.abs(arr[-1] - arr[0]).mean() / rng
     print(
-        f"Frame stats: shape={arr.shape} dtype~{arr.dtype} "
-        f"min={flat.min():.4f} max={flat.max():.4f} "
-        f"mean={flat.mean():.4f} std={flat.std():.4f}"
+        f"Frame stats: shape={arr.shape} min={flat.min():.2f} "
+        f"max={flat.max():.2f} mean={flat.mean():.2f} std={flat.std():.2f}"
+    )
+    print(
+        f"Motion: per-frame={motion_pct:.3f}%  first-vs-last={end_to_end:.3f}% "
+        f"of range"
     )
     if flat.std() < 1e-3:
         print("  WARNING: frames are essentially uniform — output is flat gray.")
+    elif motion_pct < 0.1:
+        print("  WARNING: almost no frame-to-frame change — clip is ~frozen.")
 
 
 # --- Looping & export ------------------------------------------------------
