@@ -54,8 +54,9 @@ class Config:
     negative_prompt: str = DEFAULT_NEGATIVE_PROMPT
     num_frames: int = 121          # clip length in frames
     fps: int = 24                  # playback frame rate
-    num_inference_steps: int = 20  # more = slower, potentially cleaner
+    num_inference_steps: int = 40  # more = slower, cleaner (Wan wants >=40)
     guidance_scale: float = 5.0    # prompt adherence
+    flow_shift: float | None = None  # UniPC flow shift; None -> auto by res
     seed: int = 42                 # change for a different result
     max_long_side: int = 832       # cap the longest image side (VRAM/quality)
     output_dir: str = "outputs"
@@ -67,11 +68,16 @@ def round_to_multiple(x, base=16):
     return max(base, int(round(x / base)) * base)
 
 
-def fit_size(w, h, max_long_side=832):
-    """Scale (w, h) so the longest side <= max_long_side, then snap to /16."""
+# Wan2.2 needs generation dims that are a multiple of
+# vae_scale_factor_spatial (16) * transformer patch_size (2) = 32.
+WAN_MOD = 32
+
+
+def fit_size(w, h, max_long_side=832, base=WAN_MOD):
+    """Scale (w, h) so the longest side <= max_long_side, then snap to `base`."""
     long_side = max(w, h)
     scale = min(1.0, max_long_side / float(long_side))
-    return round_to_multiple(w * scale), round_to_multiple(h * scale)
+    return round_to_multiple(w * scale, base), round_to_multiple(h * scale, base)
 
 
 def load_image(path, max_long_side=832):
@@ -189,6 +195,37 @@ def load_pipeline(cfg: Config, device: str | None = None):
 
 
 # --- Generation ------------------------------------------------------------
+def auto_flow_shift(gen_w, gen_h):
+    """Pick a UniPC flow shift by resolution: 5.0 for ~720p, 3.0 for ~480p.
+
+    Diffusers' Wan docs recommend these tiers; using the 720p shift at a low
+    resolution (or leaving the model default) under-denoises and yields gray /
+    static-noise output.
+    """
+    return 5.0 if gen_w * gen_h >= (1280 * 704) // 2 else 3.0
+
+
+def configure_scheduler(pipe, cfg: Config, gen_w, gen_h):
+    """Swap in UniPCMultistepScheduler with the right flow shift (Wan only).
+
+    Returns the flow shift used, or None if left unchanged (e.g. non-Wan
+    backends, or if the scheduler can't be reconfigured).
+    """
+    if cfg.backend != "wan":
+        return None
+    shift = cfg.flow_shift if cfg.flow_shift is not None else auto_flow_shift(gen_w, gen_h)
+    try:
+        from diffusers import UniPCMultistepScheduler
+
+        pipe.scheduler = UniPCMultistepScheduler.from_config(
+            pipe.scheduler.config, flow_shift=shift
+        )
+        return shift
+    except Exception as e:  # noqa: BLE001 - fall back to the shipped scheduler
+        print("Could not set UniPC scheduler, using default:", e)
+        return None
+
+
 def generate_frames(pipe, image, cfg: Config, device: str):
     """Run the pipeline and return the list of generated frames.
 
@@ -197,6 +234,9 @@ def generate_frames(pipe, image, cfg: Config, device: str):
     """
     generator = torch.Generator(device=device).manual_seed(cfg.seed)
     gen_w, gen_h = image.size
+    shift = configure_scheduler(pipe, cfg, gen_w, gen_h)
+    if shift is not None:
+        print(f"Scheduler: UniPCMultistepScheduler (flow_shift={shift})")
     kwargs = dict(
         image=image,
         prompt=cfg.prompt,

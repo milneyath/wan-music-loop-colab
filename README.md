@@ -177,6 +177,20 @@ The `BACKEND` parameter switches the model:
 > VAE *tiling* is deliberately left off for Wan2.2 — it's broken in diffusers
 > ([#12529](https://github.com/huggingface/diffusers/issues/12529)).
 
+### Quality (avoiding gray / static-noise output)
+
+Wan2.2 uses a flow-matching scheduler that under-denoises — producing gray
+TV-static — if it isn't given enough steps and the right flow shift:
+
+- `NUM_INFERENCE_STEPS` defaults to **40** (fewer leaves visible noise).
+- The engine swaps in `UniPCMultistepScheduler` and sets `flow_shift`
+  automatically by resolution (**5.0** near 720p, **3.0** near 480p). Override
+  with the `FLOW_SHIFT` parameter if you want.
+- Generation dims are snapped to a multiple of **32** (the model's
+  `vae_scale_factor_spatial × patch_size`); off-grid sizes also degrade output.
+- For best quality on an A100, raise `MAX_LONG_SIDE` toward **1280** so it runs
+  near the model's native 720p (slower, but the model was trained there).
+
 ---
 
 ## Repo layout

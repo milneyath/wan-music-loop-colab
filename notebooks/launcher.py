@@ -47,10 +47,12 @@ NEGATIVE_PROMPT = """camera shake, zoom, pan, rotation, fast motion, scene chang
 
 NUM_FRAMES = 121          # clip length in frames
 FPS = 24                  # playback frame rate
-NUM_INFERENCE_STEPS = 20  # more = slower, potentially cleaner
+NUM_INFERENCE_STEPS = 40  # Wan needs >=40; fewer leaves gray static noise
 GUIDANCE_SCALE = 5.0      # prompt adherence
+FLOW_SHIFT = None         # UniPC flow shift; None = auto (5.0 @720p, 3.0 @480p)
 SEED = 42                 # change for a different result
-MAX_LONG_SIDE = 832       # cap the longest image side (lower this if you OOM)
+MAX_LONG_SIDE = 832       # cap the longest image side (raise toward 1280 for
+                          # 720p quality on an A100; lower it if you OOM)
 
 # %% [markdown]
 # ## B. Setup — clone the repo and install dependencies
@@ -78,7 +80,7 @@ else:
 # Colab kernel ("Runtime disconnected").
 subprocess.run(
     [sys.executable, "-m", "pip", "install", "-q",
-     "diffusers>=0.35", "ftfy", "imageio-ffmpeg", "moviepy"],
+     "diffusers>=0.36", "ftfy", "imageio-ffmpeg", "moviepy"],
     check=True,
 )
 
@@ -103,6 +105,7 @@ cfg = wan_loop.Config(
     fps=FPS,
     num_inference_steps=NUM_INFERENCE_STEPS,
     guidance_scale=GUIDANCE_SCALE,
+    flow_shift=FLOW_SHIFT,
     seed=SEED,
     max_long_side=MAX_LONG_SIDE,
 )
