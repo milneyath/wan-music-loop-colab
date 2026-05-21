@@ -75,12 +75,13 @@ else:
     subprocess.run(["git", "-C", REPO_DIR, "pull", "--ff-only"], check=True)
 
 # --- Install dependencies --------------------------------------------------
-# Stable diffusers (>=0.35 supports Wan2.2). No `-U` on torch/numpy/
-# transformers and NO torch import here — that combination is what kills the
-# Colab kernel ("Runtime disconnected").
+# Force-upgrade diffusers to the latest stable: older Wan2.2 VAE builds decode
+# to gray. `-U` is SAFE here because the list contains NO torch / numpy /
+# transformers (those, upgraded then imported in-session, are what crash the
+# kernel as "Runtime disconnected"). We also do NOT import torch in this cell.
 subprocess.run(
-    [sys.executable, "-m", "pip", "install", "-q",
-     "diffusers>=0.36", "ftfy", "imageio-ffmpeg", "moviepy"],
+    [sys.executable, "-m", "pip", "install", "-q", "-U",
+     "diffusers", "ftfy", "imageio-ffmpeg"],
     check=True,
 )
 

@@ -256,6 +256,25 @@ def generate_frames(pipe, image, cfg: Config, device: str):
     return result.frames[0]
 
 
+def describe_frames(frames):
+    """Print min/max/mean/std of the generated frames.
+
+    A near-constant array (std ~0, mean ~0.5) means the decode collapsed to
+    flat gray — useful for telling a real result apart from a broken one.
+    """
+    import numpy as np
+
+    arr = np.asarray(frames, dtype=np.float32)
+    flat = arr.reshape(-1)
+    print(
+        f"Frame stats: shape={arr.shape} dtype~{arr.dtype} "
+        f"min={flat.min():.4f} max={flat.max():.4f} "
+        f"mean={flat.mean():.4f} std={flat.std():.4f}"
+    )
+    if flat.std() < 1e-3:
+        print("  WARNING: frames are essentially uniform — output is flat gray.")
+
+
 # --- Looping & export ------------------------------------------------------
 def make_pingpong(frames):
     """Forward + reverse (without duplicating the endpoints) = seamless loop.
@@ -293,6 +312,7 @@ def run(image_path, cfg: Config | None = None):
     print("Generating...")
     frames = generate_frames(pipe, image, cfg, device)
     print("Generated frames:", len(frames))
+    describe_frames(frames)
 
     base = export_clip(
         frames, os.path.join(cfg.output_dir, "wan_base.mp4"), cfg.fps
@@ -317,6 +337,9 @@ def colab_run(cfg: Config | None = None):
     """
     cfg = cfg or Config()
 
+    import diffusers
+
+    print("diffusers version:", diffusers.__version__)
     print("CUDA available:", torch.cuda.is_available())
     if torch.cuda.is_available():
         props = torch.cuda.get_device_properties(0)
