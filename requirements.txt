@@ -1,5 +1,6 @@
 jupytext
-diffusers>=0.36
+# Wan2.2 TI2V-5B image-to-video needs diffusers main until 0.39 ships stable.
+git+https://github.com/huggingface/diffusers
 transformers
 accelerate
 sentencepiece

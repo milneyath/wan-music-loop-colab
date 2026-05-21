@@ -151,17 +151,23 @@ account.
 
 1. Set the runtime to **GPU**: *Runtime → Change runtime type → GPU*.
 2. Edit the **A. Parameters** cell (backend, prompt, frames, resolution, …).
-3. *Runtime → Run all.* **B. Setup** clones the repo and installs a stable
-   Diffusers. **If Colab shows a RESTART button when Setup finishes, click it,
-   then run the cells again** — this is normal after a dependency install.
+3. *Runtime → Run all.* **B. Setup** clones the repo and installs Diffusers
+   from git main. **If Colab shows a RESTART button when Setup finishes, click
+   it, then run the cells again** — this is normal after a dependency install.
 4. **C. Run** imports the engine, prompts you to upload a still image, then
    generates the base clip and a seamless ping-pong loop and downloads them.
 
+> **Why Diffusers from git main?** Wan2.2 TI2V-5B *image-to-video* only decodes
+> correctly on Diffusers main (the `expand_timesteps` I2V path); the latest
+> stable (≤0.38) renders washed-out gray. Setup installs it from main.
+>
 > **Why the restart-and-rerun?** "Runtime disconnected" used to happen because
-> the old single cell upgraded torch/transformers and then imported torch in
-> the same session, segfaulting the kernel. Setup now installs a stable
-> Diffusers without `-U` and **never imports torch**, so the import only happens
-> in the Run cell (a clean session) and the kernel survives.
+> the old single cell upgraded **torch/transformers/numpy** with `-U` and then
+> imported torch in the same session, segfaulting the kernel. That was the
+> crash — not the diffusers-from-main install. Setup now installs diffusers
+> from main **without touching torch/transformers** and **never imports
+> torch**, so the import only happens in the Run cell (a clean session) and the
+> kernel survives.
 
 ### Backend & GPU guidance
 

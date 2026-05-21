@@ -75,13 +75,15 @@ else:
     subprocess.run(["git", "-C", REPO_DIR, "pull", "--ff-only"], check=True)
 
 # --- Install dependencies --------------------------------------------------
-# Force-upgrade diffusers to the latest stable: older Wan2.2 VAE builds decode
-# to gray. `-U` is SAFE here because the list contains NO torch / numpy /
-# transformers (those, upgraded then imported in-session, are what crash the
-# kernel as "Runtime disconnected"). We also do NOT import torch in this cell.
+# Wan2.2 TI2V-5B *image-to-video* only decodes correctly on diffusers git main
+# (the expand_timesteps I2V path); the latest *stable* (<=0.38) renders washed-
+# out gray. Install diffusers from main, but DELIBERATELY do NOT touch torch /
+# numpy / transformers (no `-U` on them) and do NOT import torch here — that
+# combination is what crashed the kernel ("Runtime disconnected"), not the
+# diffusers-from-main install itself.
 subprocess.run(
-    [sys.executable, "-m", "pip", "install", "-q", "-U",
-     "diffusers", "ftfy", "imageio-ffmpeg"],
+    [sys.executable, "-m", "pip", "install", "-q",
+     "git+https://github.com/huggingface/diffusers", "ftfy", "imageio-ffmpeg"],
     check=True,
 )
 
