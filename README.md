@@ -177,29 +177,22 @@ account.
 
 The `BACKEND` parameter switches the model:
 
-- **`"wan"`** (default) → `Wan-AI/Wan2.2-TI2V-5B-Diffusers`. Best quality;
-  needs an **A100** (Colab Pro). Peak VRAM ~26GB during VAE decode, so it's
-  moved fully to CUDA for speed. The larger **Wan2.2 I2V A14B** models won't
-  fit on Colab.
-- **`"ltx"`** → `Lightricks/LTX-Video`. Lighter; fits a **free T4**. On a
-  smaller GPU the engine auto-switches to CPU offload + VAE slicing.
->
-> VAE *tiling* is deliberately left off for Wan2.2 — it's broken in diffusers
-> ([#12529](https://github.com/huggingface/diffusers/issues/12529)).
+- **`"ltx"`** (default) → `Lightricks/LTX-Video`. The robust choice: solid
+  image-to-video on **stable** diffusers, runs comfortably on an A100 and even
+  a free **T4** (the engine auto-switches to CPU offload + VAE slicing on
+  smaller GPUs). This is what the notebook ships with.
+- **`"wan"`** → `Wan-AI/Wan2.2-TI2V-5B-Diffusers`. Higher fidelity but fussy:
+  its image-to-video path is **only** in diffusers **git main** (stable
+  releases decode to washed-out gray), and it wants an A100. To use it, set
+  `BACKEND="wan"` *and* change the Setup install to diffusers from main
+  (`pip install --no-deps "git+https://github.com/huggingface/diffusers"` — the
+  `--no-deps` matters, otherwise pip bumps numpy and the kernel crashes).
 
-### Quality (avoiding gray / static-noise output)
-
-Wan2.2 uses a flow-matching scheduler that under-denoises — producing gray
-TV-static — if it isn't given enough steps and the right flow shift:
-
-- `NUM_INFERENCE_STEPS` defaults to **40** (fewer leaves visible noise).
-- The engine swaps in `UniPCMultistepScheduler` and sets `flow_shift`
-  automatically by resolution (**5.0** near 720p, **3.0** near 480p). Override
-  with the `FLOW_SHIFT` parameter if you want.
-- Generation dims are snapped to a multiple of **32** (the model's
-  `vae_scale_factor_spatial × patch_size`); off-grid sizes also degrade output.
-- For best quality on an A100, raise `MAX_LONG_SIDE` toward **1280** so it runs
-  near the model's native 720p (slower, but the model was trained there).
+Generation dimensions are snapped to a multiple of **32**, which both backends
+require. For the `"wan"` backend the engine also swaps in
+`UniPCMultistepScheduler` with a resolution-aware `flow_shift` and leaves VAE
+*tiling* off (broken in diffusers,
+[#12529](https://github.com/huggingface/diffusers/issues/12529)).
 
 ---
 

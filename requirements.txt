@@ -1,6 +1,7 @@
 jupytext
-# Wan2.2 TI2V-5B image-to-video needs diffusers main until 0.39 ships stable.
-git+https://github.com/huggingface/diffusers
+# Default "ltx" backend works on stable diffusers. The "wan" backend needs
+# diffusers git main (image-to-video for Wan2.2 TI2V-5B is main-only for now).
+diffusers>=0.32
 transformers
 accelerate
 sentencepiece

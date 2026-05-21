@@ -36,9 +36,9 @@
 # Repo to clone (change if you forked it under a different account).
 REPO_URL = "https://github.com/milneyath/wan-music-loop-colab.git"
 
-# Backend: "wan" (Wan2.2 TI2V-5B, best quality, needs an A100) or
-# "ltx" (Lightricks LTX-Video, lighter, fits a free T4).
-BACKEND = "wan"
+# Backend: "ltx" (Lightricks LTX-Video — robust, works on stable diffusers,
+# good image-to-video) or "wan" (Wan2.2 TI2V-5B — needs diffusers git main).
+BACKEND = "ltx"
 MODEL_ID = None  # None -> the backend's default model
 
 PROMPT = """A dreamy looping music visual based on the input image. Keep the exact subject, composition, colors, and background consistent. Add only gentle ambient motion: soft drifting particles, subtle light shimmer, very slow atmospheric movement, slight breathing motion in the scene. Camera locked. No zoom, no pan, no rotation. Smooth, cinematic, stable, hypnotic."""
@@ -47,9 +47,9 @@ NEGATIVE_PROMPT = """camera shake, zoom, pan, rotation, fast motion, scene chang
 
 NUM_FRAMES = 121          # clip length in frames
 FPS = 24                  # playback frame rate
-NUM_INFERENCE_STEPS = 40  # Wan needs >=40; fewer leaves gray static noise
-GUIDANCE_SCALE = 5.0      # prompt adherence
-FLOW_SHIFT = None         # UniPC flow shift; None = auto (5.0 @720p, 3.0 @480p)
+NUM_INFERENCE_STEPS = 50  # LTX likes ~50; Wan needs >=40
+GUIDANCE_SCALE = 3.0      # prompt adherence (LTX default ~3; Wan uses ~5)
+FLOW_SHIFT = None         # Wan only: UniPC flow shift (None=auto). Ignored by LTX
 SEED = 42                 # change for a different result
 MAX_LONG_SIDE = 832       # cap the longest image side (raise toward 1280 for
                           # 720p quality on an A100; lower it if you OOM)
@@ -75,20 +75,15 @@ else:
     subprocess.run(["git", "-C", REPO_DIR, "pull", "--ff-only"], check=True)
 
 # --- Install dependencies --------------------------------------------------
-# Wan2.2 TI2V-5B *image-to-video* only decodes correctly on diffusers git main
-# (the expand_timesteps I2V path); the latest *stable* (<=0.38) renders washed-
-# out gray. So install diffusers from main — but with `--no-deps` so pip
-# touches ONLY diffusers and does NOT upgrade numpy/torch/etc. Colab already
-# has all of diffusers' runtime deps; upgrading numpy out from under the
-# resident torch is exactly what segfaults `import torch` ("Runtime
-# disconnected"). ftfy + imageio-ffmpeg are small and pull nothing heavy.
+# The default "ltx" backend works on *stable* diffusers, so this is a plain,
+# safe install: no `-U`, no git main. Because Colab already ships a recent
+# diffusers, the `>=` floor is normally already satisfied and pip changes
+# nothing — so numpy is left intact and `import torch` (in the Run cell) can't
+# segfault. We also never import torch in this cell.
+# (The "wan" backend additionally needs diffusers git main — see README.)
 subprocess.run(
-    [sys.executable, "-m", "pip", "install", "-q", "--no-deps",
-     "git+https://github.com/huggingface/diffusers"],
-    check=True,
-)
-subprocess.run(
-    [sys.executable, "-m", "pip", "install", "-q", "ftfy", "imageio-ffmpeg"],
+    [sys.executable, "-m", "pip", "install", "-q",
+     "diffusers>=0.32", "ftfy", "imageio-ffmpeg"],
     check=True,
 )
 

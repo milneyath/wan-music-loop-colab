@@ -48,7 +48,7 @@ BACKENDS = {
 class Config:
     """All the knobs the notebook exposes."""
 
-    backend: str = "wan"           # "wan" (default, A100) or "ltx" (lighter)
+    backend: str = "ltx"           # "ltx" (default, robust) or "wan" (Wan2.2)
     model_id: str | None = None    # None -> backend default from BACKENDS
     prompt: str = DEFAULT_PROMPT
     negative_prompt: str = DEFAULT_NEGATIVE_PROMPT
