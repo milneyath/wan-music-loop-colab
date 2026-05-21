@@ -41,9 +41,11 @@ REPO_URL = "https://github.com/milneyath/wan-music-loop-colab.git"
 BACKEND = "ltx"
 MODEL_ID = None  # None -> the backend's default model
 
-PROMPT = """A dreamy looping music visual based on the input image. Keep the exact subject, composition, colors, and background consistent. Add only gentle ambient motion: soft drifting particles, subtle light shimmer, very slow atmospheric movement, slight breathing motion in the scene. Camera locked. No zoom, no pan, no rotation. Smooth, cinematic, stable, hypnotic."""
+# Describe the MOTION you want — LTX only moves if you ask it to. Putting
+# "static/still" in the negative prompt (not the positive) encourages motion.
+PROMPT = """A dreamy, cinematic looping music visual based on the input image. The scene comes alive with gentle, continuous motion: soft drifting particles, flowing light and shimmering reflections, slowly swaying elements, and a very slow, smooth camera push-in. Everything breathes and moves naturally while keeping the subject and composition. Hypnotic, atmospheric, high quality."""
 
-NEGATIVE_PROMPT = """camera shake, zoom, pan, rotation, fast motion, scene change, new objects, new people, flicker, glitch, face morphing, body distortion, text distortion, logo distortion, sudden lighting change, jump cut"""
+NEGATIVE_PROMPT = """static, still, frozen, motionless, no motion, blurry, jittery, distorted, deformed, flickering, glitch, low quality, worst quality, jpeg artifacts, watermark, text, scene change, jump cut"""
 
 NUM_FRAMES = 121          # clip length in frames
 FPS = 24                  # playback frame rate
