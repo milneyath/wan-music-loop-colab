@@ -77,13 +77,18 @@ else:
 # --- Install dependencies --------------------------------------------------
 # Wan2.2 TI2V-5B *image-to-video* only decodes correctly on diffusers git main
 # (the expand_timesteps I2V path); the latest *stable* (<=0.38) renders washed-
-# out gray. Install diffusers from main, but DELIBERATELY do NOT touch torch /
-# numpy / transformers (no `-U` on them) and do NOT import torch here — that
-# combination is what crashed the kernel ("Runtime disconnected"), not the
-# diffusers-from-main install itself.
+# out gray. So install diffusers from main — but with `--no-deps` so pip
+# touches ONLY diffusers and does NOT upgrade numpy/torch/etc. Colab already
+# has all of diffusers' runtime deps; upgrading numpy out from under the
+# resident torch is exactly what segfaults `import torch` ("Runtime
+# disconnected"). ftfy + imageio-ffmpeg are small and pull nothing heavy.
 subprocess.run(
-    [sys.executable, "-m", "pip", "install", "-q",
-     "git+https://github.com/huggingface/diffusers", "ftfy", "imageio-ffmpeg"],
+    [sys.executable, "-m", "pip", "install", "-q", "--no-deps",
+     "git+https://github.com/huggingface/diffusers"],
+    check=True,
+)
+subprocess.run(
+    [sys.executable, "-m", "pip", "install", "-q", "ftfy", "imageio-ffmpeg"],
     check=True,
 )
 

@@ -161,13 +161,17 @@ account.
 > correctly on Diffusers main (the `expand_timesteps` I2V path); the latest
 > stable (≤0.38) renders washed-out gray. Setup installs it from main.
 >
-> **Why the restart-and-rerun?** "Runtime disconnected" used to happen because
-> the old single cell upgraded **torch/transformers/numpy** with `-U` and then
-> imported torch in the same session, segfaulting the kernel. That was the
-> crash — not the diffusers-from-main install. Setup now installs diffusers
-> from main **without touching torch/transformers** and **never imports
-> torch**, so the import only happens in the Run cell (a clean session) and the
-> kernel survives.
+> **Why the restart-and-rerun?** "Runtime disconnected" happens when something
+> upgrades **numpy** out from under Colab's resident **torch**: the next
+> `import torch` then segfaults and kills the kernel. The first version did
+> this via `-U`; installing diffusers-from-main *with its deps* did it too
+> (pip bumped numpy). Setup now installs diffusers main with **`--no-deps`** so
+> pip touches only diffusers, and **never imports torch** in that cell — so the
+> import happens in the Run cell (a clean session) and the kernel survives.
+>
+> ⚠️ If you previously ran a version that upgraded numpy, *Restart session*
+> won't undo it — use **Runtime → Disconnect and delete runtime** to get a
+> fresh VM, then reopen the notebook and Run all.
 
 ### Backend & GPU guidance
 
